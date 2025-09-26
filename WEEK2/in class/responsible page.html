@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        header{
+            background-color: #ffc8d3;
+        }
+
+        nav ul{
+                margin: 0;
+                padding: 20px;
+                list-style: none;
+        }
+
+        nav ul li{
+            margin: 20px auto;
+            text-align: center;
+            border-bottom: 2px solid black;
+            padding-bottom: 15px;
+        }
+        nav ul li a{
+            border: none;
+        }
+        nav ul li:last-child{
+            border-bottom: none;
+        }
+
+        nav ul li a{
+            text-decoration: none;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .active{
+            font-weight: bold;
+        }
+
+        @media (min-width: 768px) {
+            nav ul{
+                display: flex;
+                justify-content: space-evenly;
+            }
+            nav ul li{
+                border-bottom: none;
+                margin: 10px;
+                padding: 0;
+            }
+            
+        }
+        @media (min-width: 900px) {
+            header{
+                background-color: bisque;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Work</a></li>
+                <li class="active cursive another class"><a href="#">Blog</a></li>
+                <li><a href="#">Resume</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <p class="cursive">Lorem ipsum dolor sit amet consectetur adipisicing elit. Dolorem nostrum quo architecto asperiores reprehenderit! Assumenda ipsum animi officiis saepe rem nesciunt, amet expedita consequatur, totam iste quod dolore harum autem.</p>
+    </main>
+    <footer></footer>
+</body>
+</html>
