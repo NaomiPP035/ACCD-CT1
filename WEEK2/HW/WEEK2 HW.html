@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week2 HW responsive page</title>
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Georgia, serif;
+            background-color: #ffffff;
+        }
+        
+        header {
+            background-color: #ffffff;
+            padding: 30px 15px;
+        }
+
+        nav ul {
+            margin: 0 auto;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            max-width: 400px;
+        }
+
+        nav ul li {
+            margin: 8px 0;
+            padding: 25px 20px;
+            background-color: #ffd6e7;
+            text-align: left;
+        }
+
+        nav ul li a {
+            text-decoration: none;
+            color: #8b4789;
+            text-transform: lowercase;
+            font-size: 24px;
+        }
+
+        nav ul li:nth-child(2) {
+            background-color: #c5e1f5;
+        }
+        
+        nav ul li:nth-child(2) a {
+            font-weight: bold;
+            color: #1a5490;
+        }
+
+
+        @media (min-width: 600px) {
+            body {
+                background-color: #ffffff;
+            }
+            
+            header {
+                background-color: #ffffff;
+                padding: 50px 30px;
+            }
+            
+            nav ul {
+                flex-direction: row;
+                flex-wrap: wrap;
+                max-width: 800px;
+            }
+            
+            nav ul li {
+                margin: 10px;
+                padding: 35px 25px;
+                background-color: #a8e6cf;
+                text-align: center;
+                width: calc(50% - 20px);
+            }
+            
+            nav ul li a {
+                color: #2d6a4f;
+                text-transform: uppercase;
+                font-size: 16px;
+                letter-spacing: 1px;
+            }
+            
+            nav ul li:nth-child(2) {
+                background-color: #a8e6cf;
+            }
+            
+            nav ul li:nth-child(2) a {
+                color: #2d6a4f;
+                font-weight: normal;
+            }
+            
+            nav ul li:nth-child(7) {
+                background-color: #ffd3b6;
+            }
+            
+            nav ul li:nth-child(7) a {
+                color: #b8621b;
+                font-weight: bold;
+            }
+        }
+
+
+        @media (min-width: 900px) {
+            body {
+                background-color: #ffffff;
+            }
+            
+            header {
+                background-color: #ffffff;
+                padding: 80px 40px;
+            }
+            
+            nav ul {
+                flex-direction: row;
+                flex-wrap: wrap;
+                max-width: 1400px;
+                justify-content: center;
+            }
+            
+            nav ul li {
+                margin: 15px;
+                padding: 50px 30px;
+                background-color: #d4a5a5;
+                text-align: center;
+                width: calc(25% - 30px);
+            }
+            
+            nav ul li a {
+                color: #ffffff;
+                text-transform: capitalize;
+                font-size: 20px;
+                letter-spacing: 0;
+            }
+            
+            nav ul li:nth-child(2) {
+                background-color: #d4a5a5;
+            }
+            
+            nav ul li:nth-child(2) a {
+                color: #ffffff;
+                font-weight: normal;
+            }
+            
+            nav ul li:nth-child(7) {
+                background-color: #d4a5a5;
+            }
+            
+            nav ul li:nth-child(7) a {
+                color: #ffffff;
+                font-weight: normal;
+            }
+            
+            nav ul li:nth-child(4) {
+                background-color: #b4a7d6;
+            }
+            
+            nav ul li:nth-child(4) a {
+                color: #3d2963;
+                font-weight: bold;
+            }
+            
+            nav ul li:nth-child(11) {
+                background-color: #b4a7d6;
+            }
+            
+            nav ul li:nth-child(11) a {
+                color: #3d2963;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Ramen</a></li>
+                <li><a href="#">Cucumber Sushi</a></li>
+                <li><a href="#">Eel Sushi</a></li>
+                <li><a href="#">Spicy Shredded Potato</a></li>
+                <li><a href="#">Creamy Mushroom Pasta</a></li>
+                <li><a href="#">Crispy Roasted Chicken Wings</a></li>
+                <li><a href="#">Garlic Water Spinach</a></li>
+                <li><a href="#">Chicken Soup</a></li>
+                <li><a href="#">Stir-fried Pork</a></li>
+                <li><a href="#">Glutinous Rice Cake</a></li>
+                <li><a href="#">Lotus Root Juice</a></li>
+                <li><a href="#">Stir-fried Bitter Melon</a></li>
+                <li><a href="#">Carrot Juice</a></li>
+                <li><a href="#">Vegetable Rice Soup</a></li>
+                <li><a href="#">Hot Pot</a></li>
+                <li><a href="#">Hunan Rice Noodles</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+       
+    </main>
+    <footer></footer>
+</body>
+</html>
