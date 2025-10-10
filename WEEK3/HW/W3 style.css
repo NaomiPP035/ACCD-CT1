@@ -1,0 +1,142 @@
+body{
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+}
+img {
+    max-width: 100%;
+}
+header{
+    background-color: #ffc8d3;
+}
+
+nav ul{
+        margin: 0;
+        padding: 20px;
+        list-style: none;
+}
+
+nav ul li{
+    margin: 20px auto;
+    text-align: center;
+    border-bottom: 2px solid black;
+    padding-bottom: 15px;
+}
+nav ul li a{
+    border: none;
+}
+nav ul li:last-child{
+    border-bottom: none;
+}
+
+nav ul li a{
+    text-decoration: none;
+    color: #ffffff;
+    text-transform: uppercase;
+}
+
+.active{
+    font-weight: bold;
+}
+
+@media (min-width: 768px) {
+    nav ul{
+        display: flex;
+        justify-content: space-evenly;
+    }
+    nav ul li{
+        border-bottom: none;
+        margin: 10px;
+        padding: 0;
+    }
+    
+}
+@media (min-width: 900px) {
+    header{
+        background-color: bisque;
+    }
+}
+
+/* GALLERY STYLES */
+
+.thumbnails{
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+}
+.thumbnails li{
+    padding: 8px;
+    margin: 8px;
+}
+
+.current-thumb{
+    background-color: #ff2954;
+}
+
+.thumbnails li img {
+    width: 90%;
+    height: auto;
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+    padding: 8px;
+}
+
+.thumbnails li {
+    flex: 1;
+    min-width: 0;
+}
+
+.imgShowcase {
+width: 100%;
+height: auto;
+max-width: 100%;
+margin: 8px auto;
+position: relative;
+padding: 8px;
+}
+
+.showcase-arrow{
+width: 48px;
+height: 58px;
+position: absolute;
+top: 50%;
+background-color: rgba(150,150, 150,0.3);
+padding: 8px;
+margin: -29px 8px 0px;
+}
+
+.showcase-arrow-left {
+left: 0;
+
+}
+
+.showcase-arrow-right {
+right: 0;
+}
+
+/* Bottom STYLES */
+
+.play-button, .pause-button {
+position: absolute;
+bottom: 20px;
+padding: 10px 20px;
+background-color: rgba(255, 255, 255, 0.8);
+border: 2px solid #ff2954;
+cursor: pointer;
+font-size: 16px;
+}
+
+.play-button {
+left: 20px;
+}
+
+.pause-button {
+left: 120px;
+}
+
+.play-button:hover, .pause-button:hover {
+background-color: #ff2954;
+color: white;
+}
