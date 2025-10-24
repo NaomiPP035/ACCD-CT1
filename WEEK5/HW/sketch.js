@@ -59,6 +59,14 @@ function draw() {
         circlePosY = circleRadius;
       }
     }
+    if (circlePosX + circleRadius >= width || circlePosX - circleRadius <= 0) {
+  circleVelX = circleVelX * -0.99;
+  if (circlePosX + circleRadius >= width) {
+    circlePosX = width - circleRadius;
+  } else {
+    circlePosX = circleRadius;
+  }
+}
   }
 
   fill(100, 150, 255);
