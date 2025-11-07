@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WEEK7 HW</title>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+    </style>
+  </head>
+  <body>
+    <h1>Ugh traffic jam AGAIN</h1>
+    <p>Press 1 for Shanghai Mode, 2 for LA Mode, 3 for Vegas Mode. Press space to advance one day. Traffic paralysis happens if there is traffic jam during rainy day.</p>
+    <div class="help-text">PLEASE HELP THEM!</div><br><br><br><br><br><br><br><br><br>
+    <div>I want to build a scene and there is three mode user could choose: Shanghai Mode, La mode and Vegas mode. They are three cities I been most and precipitation of them are totally different. <br>
+
+    Then I want to find a good interaction to make user feel what I feel. Shanghai is kind of gray sky, always raining, La doesn’t actually rain but more colorful, Vegas is dessert, basically no rain and not that much colorful. Traffic in these are all awful to me, so I tried to make one scene but with different color. Each click from user means one day pass, there will be text on skreen shows what day is it now(etc Monday, Tuesday...) and there will be different rain probability for each three mode. 
+
+    I want 60%, 30% and 15% of precipitation in Shanghai Mode, LA Mode and Vegas Mode, Shanghai always has a traffic jam, I want to use colorful circle to represent cars(but black circles appears most because Shanghai is “City of Tesla” and black Tesla appears most). Traffic jams in Shanghai occur suddenly and intensely, but they also end quickly. The probability of traffic jams on weekdays is 60%, and on weekends it is 50%. In Los Angeles, traffic jams are not as sudden as in Shanghai, nor as severe, but they spread out. The probability of traffic jams on weekdays is 60%, and it remains the same on weekends. In Las Vegas, the probability of traffic jams on weekdays is 40%, and it rises to 80% on Fridays, Saturdays, and Sundays. Moreover, traffic jams always occur at the same place.
+
+    Then how should each elements effect the other? If traffic congestion and rainfall are triggered simultaneously in each city, the circles representing vehicles will be paralyzed, and the paralysis of traffic will lead to an extension of the duration of traffic congestion.
+
+    When traffic paralysis is triggered, the screen will appear redder compared to the normal scene. Moreover, each click by the user no longer represents "one day", and the change in days will stop. At this point, the user needs to gradually improve the traffic paralysis by removing the small balls on the screen. When the traffic returns to normal, the screen color will return to normal and time will start to pass again.
+    </div><br>
+    <img src="proposal.png" alt="proposal">
+    <script src="sketch.js"></script>
+  </body>
+</html>
