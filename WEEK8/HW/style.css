@@ -1,0 +1,28 @@
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#ui {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+#ui img {
+  width: 700px;
+  opacity: 1.0;
+  user-select: none;
+}
+
+#sketch-holder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  width: 640px;
+  height: 480px;
+}
