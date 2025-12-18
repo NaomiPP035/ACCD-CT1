@@ -4,43 +4,56 @@ let hands = [];
 
 let pg;
 
-// smoothing
+
+let uiImg;
+
+const UI_IMG = {
+  origW: 2048,
+  origH: 1344,
+  displayW: 700, 
+  offsetX: 20,
+  offsetY: 20
+};
+
+const WHEEL_BOX = { x1: 27, x2: 145, y1: 30, y2: 156 };
+
+function rgbToHex(r, g, b) {
+  const to2 = (v) => v.toString(16).padStart(2, "0");
+  return "#" + to2(r) + to2(g) + to2(b);
+}
+
+
 let last = null;
 let smooth = null;
 
-// stabilizer
 let stableFinger = null;
 let stableCount = 0;
 
-// brush settings
 let brushColor = "red";
 let brushSize = 8;
 let brushAlpha = 255;
 
-// undo buffer
 let history = [];
 let saveInterval = 5000;
 let lastSaveTime = 0;
 
-// long press
 let longPressTimer = 0;
 let requiredHold = 2000;
 
-// UI hit areas
 const UI = {
-  alphaSlider: { x1: 20, x2: 60, y1: 380, y2: 460 },
-  sizeSlider:  { x1: 20, x2: 60, y1: 300, y2: 370 },
+  wheel: null,
 
-  colorRed:    { x: 550, y: 40, r: 25 },
-  colorGreen:  { x: 600, y: 40, r: 25 },
-  colorBlue:   { x: 650, y: 40, r: 25 },
+  alphaSlider: { x1: 20, x2: 60,  y1: 220, y2: 320 },
+  sizeSlider:  { x1: 70, x2: 110, y1: 220, y2: 320 },
 
-  clearBtn:    { x1: 560, x2: 680, y1: 100, y2: 140 },
-  undoBtn:     { x1: 560, x2: 680, y1: 150, y2: 190 },
+  clearBtn:    { x1: 20, x2: 110, y1: 340, y2: 370 },
+  undoBtn:     { x1: 20, x2: 110, y1: 380, y2: 410 },
 };
+
 
 function preload() {
   handPose = ml5.handPose({ flipped: false });
+  uiImg = loadImage('ui.png');
 }
 
 function setup() {
@@ -57,9 +70,17 @@ function setup() {
   pg = createGraphics(width, height);
   pg.clear();
 
+  const scaleUI = UI_IMG.displayW / UI_IMG.origW;
+  UI.wheel = {
+    cx: UI_IMG.offsetX + ((WHEEL_BOX.x1 + WHEEL_BOX.x2) / 2) * scaleUI,
+    cy: UI_IMG.offsetY + ((WHEEL_BOX.y1 + WHEEL_BOX.y2) / 2) * scaleUI,
+    r:  ((WHEEL_BOX.x2 - WHEEL_BOX.x1) / 2) * scaleUI,
+    scale: scaleUI
+  };
+
+
   handPose.detectStart(video, gotHands);
 
-  // autosave undo snapshots
   setInterval(() => {
     history.push(pg.get());
     if (history.length > 10) history.shift();
@@ -68,15 +89,12 @@ function setup() {
 
 function draw() {
   background(0);
-
-  // mirror video
   push();
   translate(width, 0);
   scale(-1, 1);
   image(video, 0, 0, width, height);
   pop();
 
-  // draw layer
   image(pg, 0, 0);
 
   if (hands.length === 0) {
@@ -91,11 +109,9 @@ function draw() {
     return;
   }
 
-  // mirror hand
   let fingerX = width - finger.x;
   let fingerY = finger.y;
 
-  // ==== stabilizer ====
   if (!stableFinger) {
     stableFinger = { x: fingerX, y: fingerY };
     stableCount = 1;
@@ -108,7 +124,6 @@ function draw() {
     if (stableCount < 3) return;
   }
 
-  // ==== smooth ====
   const x = stableFinger.x;
   const y = stableFinger.y;
 
@@ -120,13 +135,11 @@ function draw() {
     smooth.y = a2 * y + (1 - a2) * smooth.y;
   }
 
-  // detect UI BEFORE drawing
   if (handleUI(smooth.x, smooth.y)) {
     last = null;
     return;
   }
 
-  // draw indicator
   fill(0, 255, 0);
   noStroke();
   circle(smooth.x, smooth.y, 14);
@@ -145,38 +158,32 @@ function draw() {
   last = { x: smooth.x, y: smooth.y };
 }
 
-// ================= UI SYSTEM =================
 function handleUI(x, y) {
 
-  // ===== Alpha slider (透明度) =====
+  if (UI.wheel && dist(x, y, UI.wheel.cx, UI.wheel.cy) < UI.wheel.r) {
+    const ix = Math.floor((x - UI_IMG.offsetX) / UI.wheel.scale);
+    const iy = Math.floor((y - UI_IMG.offsetY) / UI.wheel.scale);
+    if (uiImg && ix >= 0 && iy >= 0 && ix < uiImg.width && iy < uiImg.height) {
+      const c = uiImg.get(ix, iy); // [r,g,b,a]
+      if (c[3] > 0 && (c[0] + c[1] + c[2]) > 30) {
+        brushColor = rgbToHex(c[0], c[1], c[2]);
+      }
+    }
+    return true;
+  }
+
   if (inside(UI.alphaSlider, x, y)) {
     brushAlpha = map(y, UI.alphaSlider.y2, UI.alphaSlider.y1, 50, 255);
     brushAlpha = constrain(brushAlpha, 50, 255);
     return true;
   }
 
-  // ===== Size slider (画笔大小) =====
   if (inside(UI.sizeSlider, x, y)) {
     brushSize = map(y, UI.sizeSlider.y2, UI.sizeSlider.y1, 2, 40);
     brushSize = constrain(brushSize, 2, 40);
     return true;
   }
 
-  // ===== Color buttons =====
-  if (circleHit(UI.colorRed, x, y)) {
-    brushColor = "#FF397C";
-    return true;
-  }
-  if (circleHit(UI.colorGreen, x, y)) {
-    brushColor = "#00FF8C";
-    return true;
-  }
-  if (circleHit(UI.colorBlue, x, y)) {
-    brushColor = "#00C2FF";
-    return true;
-  }
-
-  // ===== Clear long-press =====
   if (inside(UI.clearBtn, x, y)) {
     longPressTimer += deltaTime;
     if (longPressTimer > requiredHold) {
@@ -186,12 +193,11 @@ function handleUI(x, y) {
     return true;
   }
 
-  // ===== Undo long-press =====
   if (inside(UI.undoBtn, x, y)) {
     longPressTimer += deltaTime;
     if (longPressTimer > requiredHold) {
       if (history.length > 0) {
-        pg.image(history[0], 0, 0);
+        pg.image(history[history.length - 1], 0, 0);
       }
       longPressTimer = 0;
     }

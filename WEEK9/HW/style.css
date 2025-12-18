@@ -3,26 +3,41 @@ body {
   overflow: auto;
 }
 
-#ui {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 10;
-  pointer-events: auto;
+h1 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 18px 0;
+  text-align: center;
+  z-index: 20;
+  background: rgb(255, 183, 183);
 }
 
-#ui img {
-  width: 700px;
-  opacity: 1.0;
-  user-select: none;
+:root {
+  --header-offset: 80px;
 }
 
 #sketch-holder {
   position: absolute;
-  top: 0;
+  top: var(--header-offset);
   left: 0;
   z-index: 1;
-
   width: 640px;
   height: 480px;
+}
+
+#ui {
+  position: absolute;
+  top: calc(var(--header-offset) + 20px);
+  left: 20px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#ui img {
+  width: 700px;
+  opacity: 0.45;
+  user-select: none;
 }
