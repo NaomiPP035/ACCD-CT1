@@ -9,6 +9,29 @@
   <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
 
   <link rel="stylesheet" href="style.css">
+  <style>
+    #link {
+      position: absolute;
+      top: calc(var(--header-offset) + 480px + 20px);
+      left: 0;
+      right: 0;
+      z-index: 15;
+      text-align: center;
+      padding: 15px;
+      background-color: rgba(255, 220, 220, 0.95);
+      border-top: 2px solid #ff9999;
+    }
+    #link a {
+      color: #000;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    #link a:hover {
+      text-decoration: underline;
+      color: #ff5555;
+    }
+  </style>
 </head>
 
 <body>
@@ -20,6 +43,12 @@
     <div id="ui">
       <img id="color-wheel" src="ui.png">
     </div>
+  </div>
+
+  <div id="link">
+    <a href="../../document/w9.html">
+    WEEK9 - Finish your interface document
+    </a>
   </div>
 
   <script src="sketch.js"></script>
