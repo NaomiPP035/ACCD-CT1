@@ -1,0 +1,254 @@
+<!-- 早期独立语音演示：不连接 MQTT 或实体舵机。
+     Original standalone voice demo: no MQTT or physical servo connection. -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Voice Door</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        background: #f3f0e9;
+        font-family: Arial, sans-serif;
+      }
+      #language {
+        position: fixed;
+        right: 28px;
+        top: 26px;
+        border: 1px solid #c5c4bb;
+        border-radius: 30px;
+        background: transparent;
+        padding: 12px 22px;
+        font-size: 15px;
+        color: #36463f;
+        cursor: pointer;
+      }
+      .frame {
+        width: 230px;
+        height: 350px;
+        border: 12px solid #c0baac;
+        background: #293b34;
+        perspective: 950px;
+        box-shadow: 0 18px 45px #26372e20;
+      }
+      .door {
+        display: block;
+        border: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #bb895b;
+        transform-origin: left;
+        transition: transform 1s ease;
+        position: relative;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 8px #ffffff13;
+      }
+      .door:before {
+        content: "";
+        position: absolute;
+        inset: 27px 24px;
+        border: 2px solid #986b44;
+      }
+      .door:after {
+        content: "";
+        position: absolute;
+        right: 15px;
+        top: 52%;
+        width: 14px;
+        height: 14px;
+        background: #e8d9a8;
+        border-radius: 50%;
+        box-shadow: 1px 2px 3px #0004;
+      }
+      .door.open {
+        transform: rotateY(-78deg);
+      }
+      button:focus-visible {
+        outline: 3px solid #538b73;
+        outline-offset: 5px;
+      }
+      .frame[data-listening="true"] {
+        box-shadow:
+          0 18px 45px #26372e20,
+          0 0 0 3px #739482;
+      }
+      .frame[data-error="true"] {
+        box-shadow:
+          0 18px 45px #26372e20,
+          0 0 0 3px #b58c55;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .door {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button id="language" aria-label="Switch recognition language">EN → 中文</button>
+    <div class="frame" id="frame">
+      <button
+        class="door"
+        id="door"
+        aria-label="Door closed. Click to enable microphone."
+        title="Click to enable microphone"
+      ></button>
+    </div>
+    <script>
+      // 界面元素与本地门状态 / UI elements and local door state.
+      const door = document.getElementById("door"),
+        frame = document.getElementById("frame"),
+        toggle = document.getElementById("language");
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      let language = localStorage.getItem("doorLanguage") === "zh-CN" ? "zh-CN" : "en-US",
+        recognition = null,
+        enabled = true,
+        timer = null,
+        open = false;
+      function label(message) {
+        door.title = message;
+        door.setAttribute(
+          "aria-label",
+          (language === "zh-CN"
+            ? open
+              ? "门已打开。"
+              : "门已关闭。"
+            : open
+              ? "Door open. "
+              : "Door closed. ") + message,
+        );
+      }
+      function languageUI() {
+        document.documentElement.lang = language === "zh-CN" ? "zh-CN" : "en";
+        toggle.textContent = language === "zh-CN" ? "中文 → EN" : "EN → 中文";
+        toggle.setAttribute(
+          "aria-label",
+          language === "zh-CN" ? "切换为英语识别" : "Switch to Chinese recognition",
+        );
+      }
+      // 早期版本的固定短句匹配 / Exact phrase matching in the original demo.
+      function interpret(text) {
+        let t = text
+          .toLowerCase()
+          .replace(/[.,!?。，！？]/g, "")
+          .trim()
+          .replace(/\s+/g, " ");
+        if (["open the door", "开门", "開門", "打开门", "打開門"].includes(t)) return true;
+        if (["close the door", "关门", "關門", "关闭门", "關閉門"].includes(t)) return false;
+        return null;
+      }
+      // 初始化浏览器语音识别 / Initialise browser speech recognition.
+      function start() {
+        clearTimeout(timer);
+        if (recognition || !enabled || document.hidden) return;
+        if (!Recognition) {
+          enabled = false;
+          frame.dataset.error = "true";
+          label("Speech recognition unavailable. Please use Google Chrome.");
+          return;
+        }
+        const r = new Recognition();
+        recognition = r;
+        r.lang = language;
+        r.continuous = true;
+        r.interimResults = false;
+        r.onstart = () => {
+          frame.dataset.listening = "true";
+          frame.dataset.error = "false";
+          label(
+            language === "zh-CN"
+              ? "正在聆听：开门 / 关门"
+              : "Listening: open the door / close the door",
+          );
+        };
+        r.onresult = (e) => {
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (!e.results[i].isFinal) continue;
+            const value = interpret(e.results[i][0].transcript);
+            if (value !== null) {
+              open = value;
+              door.classList.toggle("open", open);
+              label(
+                language === "zh-CN"
+                  ? "正在聆听：开门 / 关门"
+                  : "Listening: open the door / close the door",
+              );
+            }
+          }
+        };
+        r.onerror = (e) => {
+          if (e.error === "no-speech" || e.error === "aborted") return;
+          enabled = false;
+          frame.dataset.error = "true";
+          const msgs = {
+            "not-allowed":
+              language === "zh-CN"
+                ? "点击门并允许麦克风；若仍失败，请检查网站权限。"
+                : "Click the door and allow microphone access. Check site permissions if blocked.",
+            network:
+              language === "zh-CN"
+                ? "语音服务连接失败，检查网络后点击门重试。"
+                : "Speech service unavailable. Check network and click door to retry.",
+            "audio-capture":
+              language === "zh-CN"
+                ? "请连接麦克风，然后点击门重试。"
+                : "Connect a microphone, then click the door to retry.",
+          };
+          label(msgs[e.error] || e.error);
+        };
+        r.onend = () => {
+          recognition = null;
+          frame.dataset.listening = "false";
+          if (enabled && !document.hidden) timer = setTimeout(start, 700);
+        };
+        try {
+          r.start();
+        } catch (e) {
+          recognition = null;
+          enabled = false;
+          frame.dataset.error = "true";
+          label(
+            language === "zh-CN"
+              ? "点击门启动语音识别"
+              : "Click the door to start speech recognition",
+          );
+        }
+      }
+      // 点击门可重试麦克风授权 / Click the door to retry microphone access.
+      door.onclick = () => {
+        enabled = true;
+        start();
+      };
+      toggle.onclick = () => {
+        language = language === "en-US" ? "zh-CN" : "en-US";
+        localStorage.setItem("doorLanguage", language);
+        languageUI();
+        enabled = true;
+        if (recognition) recognition.abort();
+        else start();
+      };
+      document.addEventListener("visibilitychange", () => {
+        clearTimeout(timer);
+        if (document.hidden) {
+          recognition?.abort();
+        } else if (enabled) start();
+      });
+      // 离开页面时释放资源 / Release resources on page exit.
+      window.addEventListener("pagehide", () => {
+        enabled = false;
+        clearTimeout(timer);
+        recognition?.abort();
+      });
+      languageUI();
+      start();
+    </script>
+  </body>
+</html>

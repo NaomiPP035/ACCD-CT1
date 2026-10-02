@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gesture and Voice Door</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ml5@1.2.1/dist/ml5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js"></script>
+  </head>
+  <body>
+    <aside class="control-panel" aria-label="Controls and connection status">
+      <div class="primary-controls">
+        <button id="cameraButton" type="button">开启摄像头</button>
+        <button id="voiceButton" type="button">开启语音</button>
+      </div>
+
+      <div class="status-row">
+        <span id="mqttDot" class="status-dot disconnected" aria-hidden="true"></span>
+        <span id="mqttText">MQTT 已断开</span>
+      </div>
+      <div class="status-row">
+        <span id="bridgeDot" class="status-dot disconnected" aria-hidden="true"></span>
+        <span id="bridgeText">Python 桥接程序已暂停</span>
+      </div>
+
+      <div class="record-controls">
+        <button id="recordStart" type="button" disabled>开始录制</button>
+        <button id="recordStop" type="button" disabled>停止录制</button>
+      </div>
+    </aside>
+
+    <main class="camera-stage">
+      <div id="canvasContainer" aria-label="Mirrored camera view"></div>
+      <p id="doorState" class="door-state" role="status">Door state unavailable</p>
+      <p id="feedback" class="feedback" aria-live="polite"></p>
+    </main>
+
+    <script>
+      // MQTT topics shared by the webpage and Python bridge.
+      // 网页与 Python 桥接程序共用的 MQTT 主题。
+      const COMMAND_TOPIC = "naomi/ct3w2/door/command";
+      const BRIDGE_TOPIC = "naomi/ct3w2/bridge/status";
+      const DOOR_STATE_TOPIC = "naomi/ct3w2/door/state";
+
+      // Interface elements. / 页面元素。
+      const cameraButton = document.getElementById("cameraButton");
+      const voiceButton = document.getElementById("voiceButton");
+      const recordStart = document.getElementById("recordStart");
+      const recordStop = document.getElementById("recordStop");
+      const mqttDot = document.getElementById("mqttDot");
+      const mqttText = document.getElementById("mqttText");
+      const bridgeDot = document.getElementById("bridgeDot");
+      const bridgeText = document.getElementById("bridgeText");
+      const doorState = document.getElementById("doorState");
+      const feedback = document.getElementById("feedback");
+
+      // Camera and hand-tracking state. / 摄像头与手势识别状态。
+      let video;
+      let handModel;
+      let cameraStream;
+      let cameraReady = false;
+      let handPoints = [];
+      let pinching = false;
+      let gestureAnchor = null;
+      let gestureUsed = false;
+      let lastHandSeen = 0;
+      let lastGestureX = null;
+
+      // Both control methods share the same door target state.
+      // 两种控制方式共用同一个门目标状态。
+      let lastCommand = null;
+
+      // Recording captures the p5 canvas and its hand markers.
+      // 录制 p5 画布中的摄像头画面和手部标记。
+      let mediaRecorder = null;
+
+      function setIndicator(dot, connected) {
+        dot.classList.toggle("connected", connected);
+        dot.classList.toggle("disconnected", !connected);
+      }
+
+      function setMqttStatus(connected) {
+        setIndicator(mqttDot, connected);
+        mqttText.textContent = connected ? "MQTT 已连接" : "MQTT 已断开";
+      }
+
+      function setBridgeStatus(running) {
+        setIndicator(bridgeDot, running);
+        bridgeText.textContent = running
+          ? "Python 桥接程序正在运行"
+          : "Python 桥接程序已暂停";
+      }
+
+      function updateDoorState(command) {
+        if (command !== "OPEN" && command !== "CLOSE") return;
+        lastCommand = command;
+        doorState.textContent = command === "OPEN" ? "The door is open" : "The door is closed";
+      }
+
+      // Connect to Mosquitto through its local WebSocket listener.
+      // 通过本机 WebSocket 端口连接 Mosquitto。
+      let mqttClient = null;
+      let lastBridgeHeartbeat = 0;
+
+      if (window.mqtt) {
+        mqttClient = mqtt.connect("ws://127.0.0.1:9001", {
+          clean: true,
+          reconnectPeriod: 2000,
+          connectTimeout: 5000,
+          queueQoSZero: false,
+        });
+
+        mqttClient.on("connect", () => {
+          setMqttStatus(true);
+          resetGesture();
+          mqttClient.subscribe([BRIDGE_TOPIC, DOOR_STATE_TOPIC]);
+        });
+
+        mqttClient.on("message", (topic, payload) => {
+          const message = payload.toString();
+          if (topic === BRIDGE_TOPIC) {
+            if (message === "RUNNING") {
+              lastBridgeHeartbeat = Date.now();
+              setBridgeStatus(true);
+            } else if (message === "PAUSED") {
+              lastBridgeHeartbeat = 0;
+              setBridgeStatus(false);
+            }
+          }
+          if (topic === DOOR_STATE_TOPIC) updateDoorState(message);
+        });
+
+        mqttClient.on("close", () => {
+          setMqttStatus(false);
+          setBridgeStatus(false);
+          lastBridgeHeartbeat = 0;
+          resetGesture();
+        });
+
+        mqttClient.on("error", () => setMqttStatus(false));
+      } else {
+        feedback.textContent = "MQTT 程序库未加载，请检查网络后刷新。";
+      }
+
+      // Python sends a heartbeat every two seconds. Five seconds without one means paused.
+      // Python 每两秒发送心跳；超过五秒没有心跳就显示红色。
+      setInterval(() => {
+        if (lastBridgeHeartbeat && Date.now() - lastBridgeHeartbeat > 5000) {
+          lastBridgeHeartbeat = 0;
+          setBridgeStatus(false);
+        }
+      }, 1000);
+
+      // Suppress a command when the door already has the same target state.
+      // 门已经是相同目标状态时，忽略重复指令。
+      function sendDoor(open, source) {
+        const command = open ? "OPEN" : "CLOSE";
+        if (!mqttClient?.connected) {
+          feedback.textContent = "MQTT 未连接，指令没有发送。";
+          return false;
+        }
+        if (!lastBridgeHeartbeat || Date.now() - lastBridgeHeartbeat > 5000) {
+          feedback.textContent = "Python 桥接程序未运行，指令没有发送。";
+          return false;
+        }
+        if (lastCommand === command) {
+          feedback.textContent = `${source}：门已经是目标状态，忽略重复指令。`;
+          return false;
+        }
+
+        const previousCommand = lastCommand;
+        updateDoorState(command);
+        mqttClient.publish(COMMAND_TOPIC, command, { qos: 0, retain: false }, (error) => {
+          if (error) {
+            lastCommand = previousCommand;
+            doorState.textContent = previousCommand
+              ? previousCommand === "OPEN"
+                ? "The door is open"
+                : "The door is closed"
+              : "Door state unavailable";
+            feedback.textContent = "发送失败，请重试。";
+          } else {
+            feedback.textContent = `${source}：已发送 ${command}`;
+          }
+        });
+        return true;
+      }
+
+      // Match complete English keywords in any order.
+      // 匹配完整英文单词，顺序不限；同时出现 open 和 close 时忽略。
+      function parseVoice(text) {
+        const words = new Set(text.toLowerCase().match(/[a-z]+/g) || []);
+        if (!words.has("door")) return null;
+        const hasOpen = words.has("open");
+        const hasClose = words.has("close");
+        if (hasOpen === hasClose) return null;
+        return hasOpen;
+      }
+
+      // Browser speech recognition. / 浏览器英文语音识别。
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      let recognition = null;
+      let voiceWanted = false;
+      let voiceTimer = null;
+      let voicePermissionStream = null;
+
+      // Keep one microphone permission stream open while voice control is enabled.
+      // 语音控制开启期间保持同一个麦克风权限流，避免每次重启识别都重新授权。
+      async function requestVoicePermission() {
+        const activeTrack = voicePermissionStream?.getAudioTracks().find((track) => track.readyState === "live");
+        if (activeTrack) return true;
+        try {
+          voicePermissionStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false,
+          });
+          return true;
+        } catch (error) {
+          feedback.textContent = "无法使用麦克风，请在浏览器网站设置中允许麦克风。";
+          return false;
+        }
+      }
+
+      function stopVoiceControl(message = "语音已停止，手势仍可使用。") {
+        voiceWanted = false;
+        clearTimeout(voiceTimer);
+        recognition?.abort();
+        voicePermissionStream?.getTracks().forEach((track) => track.stop());
+        voicePermissionStream = null;
+        voiceButton.textContent = "开启语音";
+        feedback.textContent = message;
+      }
+
+      function startListening() {
+        clearTimeout(voiceTimer);
+        if (!voiceWanted || recognition || !Recognition) return;
+        recognition = new Recognition();
+        recognition.lang = "en-US";
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+          voiceButton.textContent = "停止语音";
+          feedback.textContent = "正在聆听英文指令……";
+        };
+
+        recognition.onresult = (event) => {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (!event.results[i].isFinal) continue;
+            const transcript = event.results[i][0].transcript;
+            const result = parseVoice(transcript);
+            if (result === null) {
+              feedback.textContent = `听到：${transcript}（未匹配）`;
+            } else {
+              feedback.textContent = `听到：${transcript}`;
+              sendDoor(result, "语音");
+            }
+          }
+        };
+
+        recognition.onerror = (event) => {
+          if (event.error === "no-speech") {
+            feedback.textContent = "暂时没有听到语音，正在继续聆听……";
+            return;
+          }
+          if (event.error === "aborted") return;
+          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            stopVoiceControl("语音权限被浏览器停止，请检查此网站的麦克风权限。" );
+            return;
+          }
+          if (event.error === "network") {
+            feedback.textContent = "语音服务暂时断开，正在尝试重新连接……";
+            return;
+          }
+          feedback.textContent = `语音错误：${event.error}，正在尝试恢复……`;
+        };
+
+        recognition.onend = () => {
+          recognition = null;
+          // Chrome may end an otherwise continuous session after a period of silence.
+          // Chrome 可能在静音一段时间后结束会话；保留权限流并自动创建下一次会话。
+          if (voiceWanted && voicePermissionStream?.active) {
+            feedback.textContent = "语音会话已刷新，正在继续聆听……";
+            voiceTimer = setTimeout(startListening, 1200);
+          }
+        };
+
+        try {
+          recognition.start();
+        } catch (error) {
+          recognition = null;
+          voiceWanted = false;
+          voiceButton.textContent = "开启语音";
+          feedback.textContent = `无法启动语音：${error.message}`;
+        }
+      }
+
+      voiceButton.addEventListener("click", async () => {
+        if (!Recognition) {
+          feedback.textContent = "当前浏览器不支持语音识别，请使用桌面 Chrome。";
+          return;
+        }
+        if (!voiceWanted) {
+          voiceButton.disabled = true;
+          feedback.textContent = "正在请求麦克风权限……";
+          const allowed = await requestVoicePermission();
+          voiceButton.disabled = false;
+          if (!allowed) return;
+          voiceWanted = true;
+          startListening();
+        } else {
+          stopVoiceControl();
+        }
+      });
+
+      // Pinch landmarks 4 and 8. Move left to open and right to close.
+      // 拇指尖 4 和食指尖 8 捏合；向左开门，向右关门。
+      function processGesture(points) {
+        const palmWidth = Math.hypot(
+          points[5].x - points[17].x,
+          points[5].y - points[17].y,
+        );
+        if (palmWidth < 18) {
+          resetGesture();
+          return;
+        }
+
+        const pinchGap =
+          Math.hypot(points[4].x - points[8].x, points[4].y - points[8].y) / palmWidth;
+        const mirroredX = 640 - (points[4].x + points[8].x) / 2;
+
+        if (lastGestureX !== null && Math.abs(mirroredX - lastGestureX) > 150) {
+          resetGesture();
+          lastGestureX = mirroredX;
+          return;
+        }
+        lastGestureX = mirroredX;
+
+        if (!pinching && pinchGap < 0.32) {
+          pinching = true;
+          gestureAnchor = mirroredX;
+          gestureUsed = false;
+        } else if (pinching && pinchGap > 0.5) {
+          resetGesture();
+          lastGestureX = mirroredX;
+        }
+
+        if (pinching && !gestureUsed && gestureAnchor !== null) {
+          const movement = mirroredX - gestureAnchor;
+          if (Math.abs(movement) > 90) {
+            gestureUsed = true;
+            sendDoor(movement < 0, "手势");
+          }
+        }
+      }
+
+      function resetGesture() {
+        pinching = false;
+        gestureAnchor = null;
+        gestureUsed = false;
+        lastGestureX = null;
+      }
+
+      // The canvas contains only the camera and fingertip guide.
+      // 画布只显示摄像头画面和指尖标记，不再绘制门动画。
+      function setup() {
+        const canvas = createCanvas(640, 480);
+        canvas.parent("canvasContainer");
+        pixelDensity(1);
+      }
+
+      function draw() {
+        background("#d9ddd9");
+        if (cameraReady && video) {
+          push();
+          translate(width, 0);
+          scale(-1, 1);
+          image(video, 0, 0, width, height);
+          pop();
+        }
+
+        if (cameraReady && performance.now() - lastHandSeen > 600) {
+          handPoints = [];
+          resetGesture();
+        }
+
+        if (handPoints.length) {
+          const thumb = handPoints[4];
+          const index = handPoints[8];
+          const thumbX = 640 - thumb.x;
+          const indexX = 640 - index.x;
+          stroke(pinching ? "#54e69a" : "#ffffff");
+          strokeWeight(3);
+          line(thumbX, thumb.y, indexX, index.y);
+          noStroke();
+          fill(pinching ? "#54e69a" : "#ffffff");
+          circle(thumbX, thumb.y, 15);
+          circle(indexX, index.y, 15);
+        }
+      }
+
+      // Start the camera and hand-pose model.
+      // 启动摄像头和手部关键点模型。
+      cameraButton.addEventListener("click", async () => {
+        if (cameraReady) return;
+        cameraButton.disabled = true;
+        cameraButton.textContent = "正在启动……";
+        feedback.textContent = "正在请求摄像头权限……";
+
+        try {
+          if (!window.ml5 || !window.p5) throw new Error("资源加载失败，请检查网络。");
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480 },
+            audio: false,
+          });
+          video = createVideo([]);
+          video.hide();
+          video.elt.muted = true;
+          video.elt.playsInline = true;
+          video.elt.srcObject = cameraStream;
+          await video.elt.play();
+          video.size(640, 480);
+
+          feedback.textContent = "正在加载手势识别模型……";
+          handModel = await new Promise((resolve, reject) => {
+            let loadedModel;
+            const timeout = setTimeout(() => reject(new Error("模型加载超时。")), 60000);
+            loadedModel = ml5.handPose({ maxHands: 1 }, () => {
+              clearTimeout(timeout);
+              resolve(loadedModel);
+            });
+          });
+
+          cameraReady = true;
+          lastHandSeen = performance.now();
+          recordStart.disabled = false;
+          cameraButton.textContent = "摄像头已开启";
+          feedback.textContent = "摄像头已开启，可以使用手势或开始录制。";
+
+          handModel.detectStart(video, (results) => {
+            if (!results.length) {
+              handPoints = [];
+              resetGesture();
+              return;
+            }
+            handPoints = results[0].keypoints;
+            if (handPoints.length < 21) return;
+            lastHandSeen = performance.now();
+            processGesture(handPoints);
+          });
+        } catch (error) {
+          cameraReady = false;
+          cameraStream?.getTracks().forEach((track) => track.stop());
+          video?.remove();
+          cameraButton.disabled = false;
+          cameraButton.textContent = "开启摄像头";
+          feedback.textContent = `启动失败：${error.message}`;
+        }
+      });
+
+      // Record the canvas as WebM and download automatically after stopping.
+      // 将画布录制为 WebM，停止后自动下载到浏览器下载文件夹。
+      recordStart.addEventListener("click", () => {
+        const canvas = document.querySelector("#canvasContainer canvas");
+        if (!cameraReady || !canvas || !window.MediaRecorder) {
+          feedback.textContent = "摄像头未开启或浏览器不支持录制。";
+          return;
+        }
+
+        const mimeTypes = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+        const mimeType = mimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+        const recordedChunks = [];
+        const recorder = new MediaRecorder(
+          canvas.captureStream(30),
+          mimeType ? { mimeType } : {},
+        );
+        mediaRecorder = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) recordedChunks.push(event.data);
+        };
+
+        recorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: recorder.mimeType || "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+          link.href = url;
+          link.download = `gesture-door-${stamp}.webm`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          mediaRecorder = null;
+          recordStart.disabled = false;
+          recordStop.disabled = true;
+          feedback.textContent = "录制已停止，视频已开始下载。";
+        };
+
+        recorder.start(1000);
+        recordStart.disabled = true;
+        recordStop.disabled = false;
+        feedback.textContent = "正在录制……";
+      });
+
+      recordStop.addEventListener("click", () => {
+        if (mediaRecorder?.state === "recording") mediaRecorder.stop();
+        recordStop.disabled = true;
+        feedback.textContent = "正在结束录制并准备下载……";
+      });
+
+      window.addEventListener("pagehide", () => {
+        voiceWanted = false;
+        clearTimeout(voiceTimer);
+        recognition?.abort();
+        voicePermissionStream?.getTracks().forEach((track) => track.stop());
+        if (mediaRecorder?.state === "recording") mediaRecorder.stop();
+        mqttClient?.end(true);
+        handModel?.detectStop();
+        cameraStream?.getTracks().forEach((track) => track.stop());
+      });
+    </script>
+  </body>
+</html>

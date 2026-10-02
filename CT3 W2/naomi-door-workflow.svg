@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#000"/>
+    </marker>
+    <style>
+      .box { fill:#fff; stroke:#000; stroke-width:4; }
+      .text { font:600 27px Arial,Helvetica,sans-serif; fill:#000; text-anchor:middle; dominant-baseline:middle; }
+      .arrow { fill:none; stroke:#000; stroke-width:4; marker-end:url(#arrow); }
+      .feedback { fill:none; stroke:#000; stroke-width:3; stroke-dasharray:12 10; marker-end:url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1920" height="1080" fill="#fff"/>
+
+  <rect class="box" x="90" y="240" width="300" height="120"/>
+  <text class="text" x="240" y="300">Voice Command</text>
+  <rect class="box" x="90" y="520" width="300" height="120"/>
+  <text class="text" x="240" y="580">Hand Gesture</text>
+
+  <rect class="box" x="520" y="350" width="340" height="180"/>
+  <text class="text" x="690" y="420">Webpage</text>
+  <text class="text" x="690" y="470">Command Detection</text>
+
+  <rect class="box" x="990" y="220" width="300" height="120"/>
+  <text class="text" x="1140" y="280">MQTT Broker</text>
+  <rect class="box" x="990" y="500" width="300" height="120"/>
+  <text class="text" x="1140" y="560">Python Bridge</text>
+
+  <rect class="box" x="1450" y="170" width="300" height="120"/>
+  <text class="text" x="1600" y="230">Arduino UNO</text>
+  <rect class="box" x="1450" y="410" width="300" height="120"/>
+  <text class="text" x="1600" y="470">Micro Servo</text>
+  <rect class="box" x="1450" y="650" width="300" height="120"/>
+  <text class="text" x="1600" y="710">Physical Door</text>
+
+  <path class="arrow" d="M390 300 H455 Q480 300 480 325 V405 Q480 430 520 430"/>
+  <path class="arrow" d="M390 580 H455 Q480 580 480 555 V475 Q480 450 520 450"/>
+  <path class="arrow" d="M860 420 H930 Q955 420 955 395 V305 Q955 280 990 280"/>
+  <path class="arrow" d="M1140 340 V500"/>
+  <path class="arrow" d="M1290 560 H1365 Q1395 560 1395 530 V260 Q1395 230 1450 230"/>
+  <path class="arrow" d="M1600 290 V410"/>
+  <path class="arrow" d="M1600 530 V650"/>
+
+  <path class="feedback" d="M1450 710 H900 Q870 710 870 680 V555 Q870 530 840 530"/>
+</svg>

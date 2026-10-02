@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Week 2 — Kludging</title>
+  <link rel="stylesheet" href="PROCESS.CSS">
+  <link rel="stylesheet" href="theme.css">
+</head>
+<body class="ct3-w2">
+<main>
+  <h1 class="title">WEEK 2 - Kludging</h1>
+  <p class="video-link"><a class="video-btn" href="https://drive.google.com/file/d/1IrUCY-twQbdD0IwfApOgUlvtQGVGrGzx/view?usp=sharing" target="_blank" rel="noopener noreferrer">Click to watch the video</a></p>
+
+  <section>
+    <p><a href="https://ima.shanghai.nyu.edu/projects/faculty-research/robotic-arms-art" target="_blank" rel="noopener noreferrer">The Mimic Brush — NYU Shanghai IMA, 2025</a> uses hand tracking and TensorFlow.js to control a robotic watercolour brush. I liked how movement could control something in the real world.</p>
+    <p>I wanted to control a machine with my own movements. I chose a door because opening and closing it is familiar. My first idea was to use a micro servo and a rotating pointer. This became the arm that opens and closes my model door.</p>
+  </section>
+
+  <section aria-label="Workflow">
+    <figure class="workflow"><img src="pics/ct3-door-workflow.svg" alt="Voice and hand gestures enter the webpage. It checks the shared state and publishes OPEN or CLOSE to Mosquitto. Python subscribes and forwards the command over USB to Arduino UNO, which drives the servo and door. Python also publishes the commanded state back through MQTT to the webpage."></figure>
+    <p>Both controls operate the same door. The browser receives my gesture or voice command, MQTT sends it to Python, and Python forwards it to the Arduino through USB. The Arduino then moves the servo.</p>
+  </section>
+
+  <section>
+    <figure><img src="pics/S1.jpg" alt="First micro servo experiment connected to an ESP32 on a breadboard."><figcaption>My first setup with the ESP32.</figcaption></figure>
+    <p>I chose a micro servo because I could control its angle. I first tried an ESP32, but it could not provide the 5V the servo needed. I switched to an Arduino UNO R3, and it worked.</p>
+    <p>I tested the movement in Arduino IDE before connecting the webpage. The first test used the space bar in the Serial Monitor to switch between 0 and 180 degrees. I then changed it to receive separate OPEN and CLOSE commands. The servo signal uses pin 9.</p>
+  </section>
+
+  <section>
+    <figure class="screen"><img src="pics/MQTT%20page.png" alt="Terminal showing a port conflict followed by the Python bridge connecting to COM4 and forwarding OPEN and CLOSE commands."><figcaption>Testing MQTT, the Python bridge and serial commands.</figcaption></figure>
+    <p>I used MQTT with a publish/subscribe system. The webpage publishes OPEN or CLOSE, and Mosquitto sends the message to the Python program.</p>
+    <p>The UNO R3 has no built-in Wi-Fi, so it connects to my computer by USB. Python listens for the MQTT message and sends it to COM4 at 9600 baud. I had to close Arduino's Serial Monitor so Python could use the port.</p>
+  </section>
+
+  <section>
+    <figure><img src="pics/S2.jpg" alt="Arduino UNO R3 wired to a micro servo beside the foam-board door."><figcaption>The UNO and servo attached to the model.</figcaption></figure>
+    <p>Making the motor turn was only the first step. I had to find a way for a 180-degree servo to open and close the door. At first, it opened only a small gap, so I adjusted the arm, thread and model.</p>
+    <p>I tried a straight arm with two ends. One pushed the door open and the other pulled a thread to close it. It often got stuck, so I adjusted the contact point and the thread tension.</p>
+  </section>
+
+  <section>
+    <figure class="screen"><img src="pics/mosquitto%20page.png" alt="Mosquitto configuration with local MQTT port 1884 and WebSocket port 9001."><figcaption>Two local connections to the same Mosquitto broker.</figcaption></figure>
+    <p>The browser uses WebSockets on port 9001, while Python uses MQTT on port 1884. Both connect to the local computer at <code>127.0.0.1</code>.</p>
+    <p>I used p5.js and ml5.js for hand tracking. Pinching my thumb and index finger, then moving right to left opens the door. Moving left to right closes it. I also added speech recognition. Saying a sentence with “open” and “door” opens it; “close” and “door” closes it. A sentence containing both commands is ignored.</p>
+    <p>Voice and gesture share one state, so the same command is not repeated. Python sends the state back through MQTT to keep the display updated. There is no door-position sensor, so the display shows the command sent, not the physical position.</p>
+  </section>
+
+  <section>
+    <figure><img src="pics/S3.jpg" alt="Testing the servo arm against the edge of the model door by hand."><figcaption>Testing where the arm meets the door.</figcaption></figure>
+    <p>After several tests, I connected the closing thread directly to the opening arm. This made the mechanism simpler, but I still had to check the contact point and thread movement.</p>
+    <p>The arm later broke in the middle. I tried a bent shape, which made the door shake less and felt more secure than the straight version.</p>
+  </section>
+
+  <section>
+    <figure class="screen"><img src="pics/autostart%20code.png" alt="Windows batch script that launches Mosquitto, the Python bridge, a local web server and the control webpage."><figcaption>The one-click startup script.</figcaption></figure>
+    <p>I put the startup steps into <code>start-door-system.bat</code>. It launches Mosquitto, the Python bridge, a local web server and the control page.</p>
+    <p>After connecting the UNO, I run the launcher and enable the camera and voice on the page. The page shows the camera feed, connection indicators and door state. It also has buttons to record the camera canvas.</p>
+  </section>
+
+  <section>
+    <figure><img src="pics/S4.jpg" alt="Final bent servo arm and thread fitted to the model door."><figcaption>The bent arm and thread in the final mechanism.</figcaption></figure>
+    <p>The final version uses one bent arm to open the door and pull the thread closed. I can switch between voice and gesture because both controls use the same system.</p>
+  </section>
+  <p class="back-link"><a class="video-btn" href="CT3's%20document.html">Back to CT3</a></p>
+</main>
+</body>
+</html>
